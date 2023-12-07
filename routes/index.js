@@ -1,6 +1,7 @@
 var express = require('express');
 var router = express.Router();
 const models = require('../models')
+const path = require('path')
 const { Op } = require("sequelize");
 
 /* GET users listing. */
@@ -73,15 +74,22 @@ router.delete('/:id', async function (req, res, next) {
 
 router.put('/:id/avatar', async function (req, res, next){
   try{
-    const {avatar} = req.body
-    const user = await models.users.update({ avatar }, {
-      where: {
-        id: req.params.id
-      },
-      returning: true,
-      plain: true
+    const {avatar} = req.files
+    let avatarName = Date.now() + '-' + avatar.name;
+    let avatarPath = path.join(__dirname, '..', 'public', 'images', avatarName);
+    avatar.mv(avatarPath, async function (err) {
+      const user = await models.users.update({ avatar : avatarName }, {
+        where: {
+          id: req.params.id
+        },
+        returning: true,
+        plain: true
+      });
+      console.log(user)
+      res.json(user[1])
+
     });
-    res.json(user[1])
+    
   }catch(err) {
     console.log(err)
     res.json({ err })
