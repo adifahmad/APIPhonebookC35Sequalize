@@ -3,24 +3,28 @@ var router = express.Router();
 const models = require('../models')
 const path = require('path')
 const { Op } = require("sequelize");
+const { off } = require('process');
 
 /* GET users listing. */
 router.get('/', async function (req, res, next) {
   try {
-    const { page = 1, sortBy = "id", sortMode = "desc", limit = 5, keyword = ''} = req.query
+    const { page = 1, sortBy = "id", sortMode = "desc", limit = 30, keyword = ''} = req.query
     const offset = (page - 1) * limit
-    const user = await models.users.findAll({
+    const user = await models.users.findAndCountAll({
       where : { 
          [Op.or] : [ {name : {[Op.iLike]: `%${keyword}%`}}, {phone : {[Op.iLike]: `%${keyword}%`}}]
        },
        order : [
         [sortBy, sortMode]
-       ]
+       ], 
+       limit : limit,
+       offset : offset
+
       });
-      
-    const total = user.length
+      console.log(user)
+    const total = user.count
     const pages = Math.ceil(total / limit)
-    res.json(user)
+    res.json({phonebook: user.rows, page : Number(page), limit : Number(limit), pages, total})
   } catch (err) {
     console.log(err)
     res.json({ err })
@@ -33,7 +37,7 @@ router.post('/', async function (req, res, next) {
     const user = await models.users.create({
       name, phone
     });
-    res.json(user)
+    res.status(201).json(user)
   } catch (err) {
     console.log(err)
     res.json({ err })
@@ -50,7 +54,7 @@ router.put('/:id', async function (req, res, next) {
       returning: true,
       plain: true
     });
-    res.json(user[1])
+    res.status(201).json(user[1])
   } catch (err) {
     console.log(err)
     res.json({ err })
@@ -60,12 +64,17 @@ router.put('/:id', async function (req, res, next) {
 
 router.delete('/:id', async function (req, res, next) {
   try {
+    const users = await models.users.findOne({
+      where: {
+        id: req.params.id
+      }
+    })
     const user = await models.users.destroy({
       where: {
         id: req.params.id
       }
     });
-    res.json(user)
+    res.json(users)
   } catch (err) {
     console.log(err)
     res.json({ err })
